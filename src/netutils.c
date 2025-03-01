@@ -1,29 +1,55 @@
 #include "netutils.h"
 #include <errno.h>
+#include <string.h>
+#include <netdb.h>
 
 int open_listenfd(uint16_t port) {
-  struct sockaddr_in sevr_addr;
+  struct addrinfo hints, *results, *rp;
+  char sport[8] = {0};
+  int reuse = 1;
+  int sock;
 
-  sevr_addr.sin_family = AF_INET;
-  sevr_addr.sin_port = htons(port);
-  sevr_addr.sin_addr.s_addr = INADDR_ANY;
+  memset(&hints, 0, sizeof(struct addrinfo));
 
-  int listenfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (listenfd < 0) {
+  hints.ai_flags = AI_PASSIVE;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+
+  if (snprintf(sport, sizeof(sport) - 1, "%d", port) <= 0) {
+    fprintf(stderr, "snprintf failed\n");
+    return -1;
+  }
+
+  if (getaddrinfo(NULL, sport, &hints, &results) != 0) {
+    fprintf(stderr, "getaddrinfo failed\n");
+    return -1;
+  }
+
+  for (rp = results; rp != NULL; rp = rp->ai_next) {
+    sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    if (sock < 0) continue;
+
+    if (setsockopt(
+      sock, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse, sizeof(reuse)
+    ) < 0) {
+      close(sock);
+      sock = -1;
+      continue;
+    }
+
+    if (bind(sock, rp->ai_addr, rp->ai_addrlen) == 0) {
+      break;
+    }
+    close(sock);
+    sock = -1;
+  }
+
+  freeaddrinfo(results);
+  if (rp == NULL) {
     fprintf(stderr, "Error while opening listenfd\n");
     return -1;
   }
-  
-  if (bind(listenfd, (struct sockaddr*)&sevr_addr, sizeof(sevr_addr)) != 0) {
-    fprintf(stderr, "Error while binding listenfd to address\n");
-    return -1;
-  }
-  if (listen(listenfd, MAX_CONN) < 0) {
-    fprintf(stderr, "Error while listening on listenfd\n");
-    return -1;
-  }
-
-  return listenfd;
+  return sock;
 }
 
 size_t rio_writen(int fd, const char *usrbuf, size_t n) 

@@ -324,6 +324,10 @@ int main() {
   signal(SIGPIPE, SIG_IGN);
 
   int listenfd = open_listenfd(PORT);
+  if (listenfd < 0) {
+    fprintf(stderr, "error while creating listen fd\n");
+    exit(1);
+  }
 
   setnonblocking(listenfd);
 
