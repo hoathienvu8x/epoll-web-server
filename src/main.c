@@ -30,21 +30,34 @@ int parse_request(const char *req_str, request_t *req_info) {
 FILE *handle_request(const request_t *req) {
   if (strncmp(req->method, "GET", 3) != 0) {
     fprintf(stderr, "only support `GET` method\n");
+    send_response(req->connfd, ISE, content_500, strlen(content_500));
     return NULL;
   }
 
   char *abs_path = (char *)malloc(PATH_MAX);
   if (abs_path == NULL) {
+    send_response(req->connfd, ISE, content_500, strlen(content_500));
     perror("malloc");
+    return NULL;
   }
   const char *rel_path = req->uri[0] == '/' ? req->uri + 1 : req->uri;
   char *cur_dir = (char *)malloc(PATH_MAX);
   if (cur_dir == NULL) {
     perror("malloc");
+    send_response(req->connfd, ISE, content_500, strlen(content_500));
+    return NULL;
   }
 
-  realpath(rel_path, abs_path);
-  getcwd(cur_dir, PATH_MAX);
+  if (realpath(rel_path, abs_path) == NULL) {
+    perror("realpath");
+    send_response(req->connfd, ISE, content_500, strlen(content_500));
+    return NULL;
+  }
+  if (getcwd(cur_dir, PATH_MAX) == NULL) {
+    perror("getcwd");
+    send_response(req->connfd, ISE, content_500, strlen(content_500));
+    return NULL;
+  }
 
   if (strncmp(cur_dir, abs_path, strlen(cur_dir)) != 0) {
     send_response(req->connfd, ISE, content_500, strlen(content_500));
@@ -172,11 +185,10 @@ void server(http_status_t *status) {
     req_info.connfd = connfd;
     FILE *file = handle_request(&req_info);
 
-    fseek(file, 0L, SEEK_END);
-    __off_t file_size = ftell(file);
-    fseek(file, 0L, SEEK_SET);
-
     if (file != NULL) {
+      fseek(file, 0L, SEEK_END);
+      __off_t file_size = ftell(file);
+      fseek(file, 0L, SEEK_SET);
       char resp_header[64];
       sprintf(resp_header, "HTTP/1.0 200 OK\r\nContent-Length: %ld\r\n\r\n", file_size);
       rio_writen(connfd, resp_header, strlen(resp_header));
@@ -248,7 +260,7 @@ void *thread(void *args) {
         while (1) {
           int connfd = accept(listenfd, (struct sockaddr *)&clnt_addr, &clnt_addr_len);
           if (connfd < 0) {
-            if (errno == EAGAIN | errno == EWOULDBLOCK) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
             } else {
                 perror("accept");

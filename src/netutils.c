@@ -7,7 +7,7 @@ int open_listenfd(uint16_t port) {
   struct addrinfo hints, *results, *rp;
   char sport[8] = {0};
   int reuse = 1;
-  int sock;
+  int sock = -1;
 
   memset(&hints, 0, sizeof(struct addrinfo));
 
@@ -45,8 +45,12 @@ int open_listenfd(uint16_t port) {
   }
 
   freeaddrinfo(results);
-  if (rp == NULL) {
+  if (rp == NULL || sock < 0) {
     fprintf(stderr, "Error while opening listenfd\n");
+    return -1;
+  }
+  if (listen(sock, MAX_CONN) < 0) {
+    fprintf(stderr, "Error while listening on listenfd\n");
     return -1;
   }
   return sock;

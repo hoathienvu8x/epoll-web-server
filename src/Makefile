@@ -1,6 +1,6 @@
-CC = g++
+CC = gcc
 LDFLAGS = -lpthread
-CFLAGS = 
+CFLAGS = -std=gnu99 -Og -g
 OBJS = netutils.o main.o
 DEPS = netutils.h
 SRCDIR = ./
