@@ -10,23 +10,23 @@
 #define MAX_EVENTS 64
 
 typedef enum STATUS {
-    OK,   // OK
-    ISE,  // Internal Server Error
-    NF    // Not Found
+  OK,   // OK
+  ISE,  // Internal Server Error
+  NF    // Not Found
 } status_t;
 
 typedef enum REQUEST_STATUS {
-    Reading,
-    Writing,
-    Ended
+  Reading,
+  Writing,
+  Ended
 } req_status_t;
 
 typedef struct RequestInfo {
-    int connfd; // connection file descriptor
+  int connfd; // connection file descriptor
 
-    char uri[MAX_URL];
-    char method[MAX_METHOD];
-    char version[MAX_VERSION];
+  char uri[MAX_URL];
+  char method[MAX_METHOD];
+  char version[MAX_VERSION];
 } request_t;
 
 const char *content_404 = "404 Not Found";
@@ -39,20 +39,20 @@ FILE *handle_request(const request_t *req);
 int parse_request(const char *req_str, request_t *req_info);
 
 typedef struct HttpStatus {
-    int connfd;
-    char *header;
-    size_t readn;
-    FILE *file;
-    size_t left;
-    req_status_t req_status;
+  int connfd;
+  char *header;
+  size_t readn;
+  FILE *file;
+  size_t left;
+  req_status_t req_status;
 } http_status_t;
 
 // 0 if not end, 1 if end response
 void server(http_status_t *status);
 
 struct thread_args {
-    int listenfd;
-    int epollfd;
+  int listenfd;
+  int epollfd;
 };
 
 void *thread(void *args);
